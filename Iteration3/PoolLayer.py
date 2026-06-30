@@ -11,6 +11,7 @@ class PoolLayer:
         self.outputShape=(((height-poolFilterSize+(2*padding))//poolStride)+1,((width-poolFilterSize+(2*padding))//poolStride)+1,depth)
         self.stride=poolStride
         self.filterSize=poolFilterSize
+        self.maxIndices=np.zeros(self.inputShape,dtype='O')
 
     def forward(self,input):
         outputHeight,outputWidth,outputDepth=self.outputShape
@@ -21,7 +22,28 @@ class PoolLayer:
                 for c in range(outputWidth):
                     patch=input[r*self.stride:r*self.stride+self.filterSize,c*self.stride:c*self.stride+self.filterSize,d]
 
+                    # flatten the patch 2d thing and turn it into a logn list
+                    #look for the highest value in that list return its index
+                    maxIndex=np.argmax(patch)
+                    #use max index and the original shape of the patch to get coordinates of the patch
+                    max2DCoords=np.unravel_index(maxIndex,patch.shape)
+
+                    #if backprop breaks in pooiling check this logic
+                    self.maxIndices[r,c,d]=max2DCoords
                     output[r,c,d]=np.max(patch)
-
-
         return output
+    
+    def backward(self,dOutput):
+        #copy the structure of the next layer and fill 0s all aroun
+        #do cause relevant entries will be updated and have values the ones that didnt contribute wont get anything
+        dInput=np.zeros_like(dOutput)
+        outputHeight,outputWidth,outputDepth=self.outputShape
+        for  d in range(outputDepth):
+            for r in range(outputHeight):
+                for c in range(outputWidth):
+                    maxValH,MaxValW=self.maxIndices[r,c,d]
+
+                    #use the row and stride with stored cordinates in the max indicies to update only the activation neuron that needs updating due to the layer after this one
+                    dInput[r*self.stride+maxValH,c*self.stride+MaxValW,d]+=dOutput[r,c,d]
+
+        return dInput

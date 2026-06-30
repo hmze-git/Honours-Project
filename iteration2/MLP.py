@@ -99,6 +99,7 @@ def backPropagation(Y,Z1,A1,W1,Z2,A2,W2,Z3,A3,W3,X):
     #A2: 70,000x10
     DW3=1/m*A2.T@DZ3
 
+
     DB3=1/m *np.sum(DZ3,axis=0,keepdims=True)
 
     # hidden layer 2
