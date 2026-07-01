@@ -12,6 +12,8 @@ class Filter:
         self.bias=bias
         self.width=fWidth
         self.height=fHeight
+        self.dWeights=None
+        self.dBias=None
 
 
     #take the patch sliced out

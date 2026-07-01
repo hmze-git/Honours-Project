@@ -12,6 +12,8 @@ class ConVLayer:
         self.outputShape=(((height-filterSize+(2*padding))//stride)+1,((width-filterSize+(2*padding))//stride)+1,numFilters)
         self.stride=stride
         self.filters=[]
+        self.layerInput=None
+        self.finalZ=None
         for _ in range(numFilters):
             self.filters.append(Filter(filterSize,filterSize,depth))
 
@@ -19,6 +21,7 @@ class ConVLayer:
 
     def forward(self,input):
         
+        self.layerInput=input
         outputHeight,outputWidth,outputDepth=self.outputShape
         output=np.zeros(self.outputShape)
 
@@ -27,20 +30,49 @@ class ConVLayer:
             filterHeight=filter.height
             for r in range(outputHeight):
                 for c in range(outputWidth):
-                    patch=input[r:r*self.stride+filterHeight,c:c*self.stride+filterWidth,:]
+                    patch=input[r*self.stride:r*self.stride+filterHeight,c*self.stride:c*self.stride+filterWidth,:]
                     output[r,c,fd]=filter.applyFilter(patch)
 
+        self.finalZ=output
         output=self.ReLu(output)
         return output
     def backward(self,backwardsInput):
 
-        workingArr=backwardsInput
-        #layer ends with ReLU so start by undoing that 
-        workingArr=self.derivative_ReLU(backwardsInput)
         
-        
-        pass
+        #dl/dz chain rules to the backwards input * doutput/dz 
+        Dz=backwardsInput * self.derivative_ReLU(self.finalZ)
 
+        Dinput=np.zeros(self.inputShape)
+
+        outputHeight,outputWidth,outputDepth=self.outputShape
+        for fd,filter in enumerate(self.filters):
+            
+            #This is the updated weight matrix for each specefic filter
+            filterWidth=filter.width
+            filterHeight=filter.height
+            dWeights=np.zeros_like(filter.weights)
+            dBias=0.0
+            for r in range(outputHeight):
+                for c in range(outputWidth):
+                    strideR=r*self.stride
+                    strideC=c*self.stride
+                    #cut out the exact patch that the filter was applied on
+                    #filters go on all channels/depth at once so cut the full slice
+                    patch=self.layerInput[strideR:strideR+filterHeight,strideC:strideC+filterWidth,:]
+
+                    #change in loss due to changing the z value
+                    # change in z affected by weight and bias so chain rule says that u apply this to those
+                    gradient=Dz[r,c,fd]
+
+                    #Dl/Dkmn=Input matrix cross correlated with Dl/DY
+                    dWeights+=patch*gradient
+
+                    dBias+=gradient
+                    Dinput[strideR:strideR+filterHeight,strideC:strideC+filterWidth,:]+=filter.weights*gradient
+
+            filter.dWeights=dWeights
+            filter.dBias=dBias
+        return Dinput
     
 
     def ReLu(self,arr):
