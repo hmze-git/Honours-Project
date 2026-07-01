@@ -16,7 +16,7 @@ class ConVLayer:
         self.finalZ=None
         for _ in range(numFilters):
             self.filters.append(Filter(filterSize,filterSize,depth))
-
+        self.update=True
     
 
     def forward(self,input):
@@ -72,8 +72,9 @@ class ConVLayer:
 
             filter.dWeights=dWeights
             filter.dBias=dBias
+
+        
         return Dinput
-    
 
     def ReLu(self,arr):
         return np.maximum(arr,0)
@@ -81,3 +82,13 @@ class ConVLayer:
     # when reul less than 0 deriv constant at 0 when not its 1
     def derivative_ReLU(self,Z):
         return (Z>0).astype(int)
+
+    def updateParameters(self,learnRate):
+
+        for filt in self.filters:
+            filt.weights-=learnRate*filt.dWeights
+            filt.bias-=learnRate*filt.dBias
+
+
+
+

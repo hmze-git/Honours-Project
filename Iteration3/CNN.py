@@ -18,12 +18,28 @@ class CNN:
         nxtInput=input
         for layer in self.layers:
             nxtInput=layer.forward(nxtInput)
-            print(nxtInput.shape)
-            print(nxtInput)
+
        
+
 
     
         return nxtInput
+    
+    def backward(self,truelabelIndex):
+        dInput=None
+
+        for layer in reversed(self.layers):
+            if hasattr(layer,'requiresLabel')and layer.FinalLayer==True:
+                dInput=layer.backward(dInput,truelabelIndex)
+            else:
+                dInput=layer.backward(dInput)
+        return dInput
+    
+    def update(self,learnRate):
+        for layer in self.layers:
+            if hasattr(layer,'updateParameters'):
+                layer.updateParameters(learnRate)
+
     def sparseCategoricalCrossEntropyLoss(self,prediction,trueLabelIndex):
 
         epsilon=1e-12
@@ -33,3 +49,41 @@ class CNN:
         # if its high loss is low
         # if it is low loss is high (very wrong)
         return -np.log(prediction[trueLabelIndex]+epsilon)
+    
+    def train(self,xtrain,ytrain,epochs,numEntries,lr=0.01):
+        n=numEntries or len(xtrain)
+
+        for epoch in range(epochs):
+            totalLoss=0
+            correct=0
+            for i in range(n):
+                probs=self.forward(xtrain[i])
+               # print(probs)
+                loss=self.sparseCategoricalCrossEntropyLoss(probs,ytrain[i])
+
+                totalLoss+=loss
+
+                if np.argmax(probs)==ytrain[i]:
+                    correct+=1
+
+
+                
+                print(f"Sample {i}:")
+                print(f"  probs: {probs}")
+                print(f"  argmax: {np.argmax(probs)}")
+                print(f"  true label: {ytrain[i]}")
+                print(f"  prob of true class: {probs[ytrain[i]]:.6f}")
+                print(f"  loss: {-np.log(probs[ytrain[i]] + 1e-12):.4f}")
+
+
+                self.backward(ytrain[i])
+                self.update(lr)
+                avgLoss=totalLoss/(i+1)
+                acc=correct/(i+1)
+                print(f"Epoch {epoch}: loss={avgLoss:.4f}, accuracy={acc:.4f}")
+
+    def accuracy(self,predictions,labels):
+        predictions=np.array(predictions)
+        lables=np.array(labels)
+
+        return np.mean(predictions==lables)

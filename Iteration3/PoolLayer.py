@@ -36,7 +36,7 @@ class PoolLayer:
     def backward(self,dOutput):
         #copy the structure of the next layer and fill 0s all aroun
         #do cause relevant entries will be updated and have values the ones that didnt contribute wont get anything
-        dInput=np.zeros_like(dOutput)
+        dInput=np.zeros(self.inputShape)
         outputHeight,outputWidth,outputDepth=self.outputShape
         for  d in range(outputDepth):
             for r in range(outputHeight):
