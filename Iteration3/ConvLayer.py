@@ -13,6 +13,7 @@ class ConVLayer:
         self.stride=stride
         self.filters=[]
         self.layerInput=None
+        self.filterSize=filterSize
         self.finalZ=None
         for _ in range(numFilters):
             self.filters.append(Filter(filterSize,filterSize,depth))
@@ -24,14 +25,17 @@ class ConVLayer:
         self.layerInput=input
         outputHeight,outputWidth,outputDepth=self.outputShape
         output=np.zeros(self.outputShape)
+        #think of X as input just reshaped
+        X=self.convertIm2Col(input)
 
-        for fd,filter in enumerate(self.filters):
-            filterWidth=filter.width
-            filterHeight=filter.height
-            for r in range(outputHeight):
-                for c in range(outputWidth):
-                    patch=input[r*self.stride:r*self.stride+filterHeight,c*self.stride:c*self.stride+filterWidth,:]
-                    output[r,c,fd]=filter.applyFilter(patch)
+        #stack the weights as row vectors because the columns of X are patches
+        WeightVector=np.stack([f.weights.flatten() for f in self.filters],axis=0)
+        biases=np.array([f.bias for f in self.filters]).reshape(-1,1)
+
+
+        outputF=WeightVector@X + biases
+       
+        output=outputF.T.reshape(outputHeight,outputWidth,outputDepth)
 
         self.finalZ=output
         output=self.ReLu(output)
@@ -40,41 +44,68 @@ class ConVLayer:
 
         
         #dl/dz chain rules to the backwards input * doutput/dz 
+
+        #Dz is of the form of the input passed from layer to layer
         Dz=backwardsInput * self.derivative_ReLU(self.finalZ)
+        #undo reshape from end of forward so we can go in reverse
+        #do so it can work with the im2col version of X later on 
 
-        Dinput=np.zeros(self.inputShape)
+        #REMEMBER AFTER THE @ STEP IN FORWARD YOU GET RHE ROWsXCOLs where rows are the filters and cols are the patches this gives that 
+        DzFlattened=Dz.reshape(-1,self.numKernels).T
 
-        outputHeight,outputWidth,outputDepth=self.outputShape
-        for fd,filter in enumerate(self.filters):
-            
-            #This is the updated weight matrix for each specefic filter
-            filterWidth=filter.width
-            filterHeight=filter.height
-            dWeights=np.zeros_like(filter.weights)
-            dBias=0.0
-            for r in range(outputHeight):
-                for c in range(outputWidth):
-                    strideR=r*self.stride
-                    strideC=c*self.stride
-                    #cut out the exact patch that the filter was applied on
-                    #filters go on all channels/depth at once so cut the full slice
-                    patch=self.layerInput[strideR:strideR+filterHeight,strideC:strideC+filterWidth,:]
+        print(DzFlattened.shape)
 
-                    #change in loss due to changing the z value
-                    # change in z affected by weight and bias so chain rule says that u apply this to those
-                    gradient=Dz[r,c,fd]
+        X=self.convertIm2Col(self.layerInput)
 
-                    #Dl/Dkmn=Input matrix cross correlated with Dl/DY
-                    dWeights+=patch*gradient
+        #Weights stacked along the rows 
+        #R1=W1's weight parameters
+        #C1-Cn=W1's adjustable parameters
+        Weights=np.stack([f.weights.flatten() for f in self.filters],axis=0)
 
-                    dBias+=gradient
-                    Dinput[strideR:strideR+filterHeight,strideC:strideC+filterWidth,:]+=filter.weights*gradient
+        #Dl/Dkmn=Input matrix cross correlated with Dl/DY
+        dWeights=DzFlattened@X.T
 
-            filter.dWeights=dWeights
-            filter.dBias=dBias
+
+        dBias=DzFlattened.sum(axis=1,keepdims=True)
+
+        inputHeight, inputWidth, inputDepth = self.inputShape
+
+        for i, filt in enumerate(self.filters):
+            filt.dWeights = dWeights[i].reshape(self.filterSize, self.filterSize, inputDepth)
+            filt.dBias = dBias[i, 0]
+
+       
+
+        dX=Weights.T@DzFlattened
+
+        
+        Dinput=self.col2Im(dX)
 
         
         return Dinput
+
+
+    
+    def col2Im(self,DX):
+        inputHeight,inputWidth,inputDepth=self.inputShape
+        outputHeight,outputWidth,outputDepth=self.outputShape
+
+        Dinput=np.zeros(self.inputShape)
+        x=0
+
+        for r in range(outputHeight):
+            for c in range(outputWidth):
+                strideR=r*self.stride
+                strideC=c*self.stride
+                
+
+                gradientFilter=DX[:,x].reshape(self.filterSize,self.filterSize,inputDepth)
+                
+
+                Dinput[strideR:strideR+self.filterSize,strideC:strideC+self.filterSize,:]+=gradientFilter
+                x+=1
+        return Dinput
+
 
     def ReLu(self,arr):
         return np.maximum(arr,0)
@@ -89,6 +120,24 @@ class ConVLayer:
             filt.weights-=learnRate*filt.dWeights
             filt.bias-=learnRate*filt.dBias
 
+    def convertIm2Col(self,input):
+            outputHeight,outputWidth,outputDepth=self.outputShape
+            inputHeight,inputWidth,inputDepth=self.inputShape
+            filterWidth=self.filterSize
+            filterHeight=self.filterSize
 
+            #first part gives number of entries 
+            #second gives the number fo patches
+            matCol=np.zeros((filterHeight*filterWidth*inputDepth,outputWidth*outputHeight))
+            x=0
+            for r in range(outputHeight):
+                for c in range(outputWidth):
+                    patch=input[r*self.stride:r*self.stride+filterHeight,c*self.stride:c*self.stride+filterWidth,:]
+
+                    #take each and every row and for each row 
+                    matCol[:,x]=patch.flatten()
+                    x+=1
+            return matCol
+                    
 
 
