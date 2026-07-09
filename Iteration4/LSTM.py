@@ -122,47 +122,56 @@ class LSTMCell:
         #loss function to be used is Sparse Categorical Cross Entropy Loss
 
         #output gate derivative
-        DO=DH*self.tanh(cachedValues.cnew)
+        DO=DH*self.tanh(cachedValues.get('cnew'))
 
         #cekk state gradient loss
-        DCell=DHCell+DH*cachedValues.outG*(1-(self.tanh(cachedValues.cnew))**2)
+        DCell=DHCell+DH*cachedValues.get('outG')*(1-(self.tanh(cachedValues.get('cnew')))**2)
 
 
-        DI=DCell*cachedValues.candG
+        DI=DCell*cachedValues.get('candG')
 
-        DCG=DCell*cachedValues.inputG
+        DCG=DCell*cachedValues.get('inputG')
         
 
-        DF=DCell*cachedValues.cOld
+        DF=DCell*cachedValues.get('cOld')
 
+ 
+
+        DFGpre=DF*cachedValues.get('forgetG')*(1-cachedValues.get('forgetG'))
+        DIGpre=DI*cachedValues.get('inputG')*(1-cachedValues.get('inputG'))
+        DCGpre=DCG*(1-(cachedValues.get('candG')**2))
+        DOgpre=DO*cachedValues.get('outG')*(1-cachedValues.get('outG'))
         #DHCell to be passed into "previous"
         #check this if gradient is wonky
-        DCellPrevT=DCell*cachedValues.forgetG
+        DCellPrevT=DCell*cachedValues.get('forgetG')
 
-        #change in loss by changing the hidden state 
+        #change in loss by changing the hidden state
         #since hidden is affected by all weights from all the gates sum them up
-        DHPrevT=self.WeightFGHide.T@DF +self.WeightCGHide.T@DCG+self.WeightInGHide.T@DI+self.WeightOutGHide.T@DO
+        #note that use preactivation so first apply derivative of the activation functions for each gate
+        DHPrevT=self.WeightFGHide@DFGpre +self.WeightCGHide@DCGpre+self.WeightInGHide@DIGpre+self.WeightOutGHide@DOgpre
 
     # weight Gradients
     #outputGate weight grad
-        self.DwXo+=DO*cachedValues.outG*(1-cachedValues.outG)*cachedValues.x
-        self.DwHo+=DO*cachedValues.outG*(1-cachedValues.outG)*cachedValues.hOld
-        self.Dbiaso+=DO*cachedValues.outG*(1-cachedValues.outG)
+
+        
+        self.DwXo+=np.outer(cachedValues.get('x'),DO*cachedValues.get('outG')*(1-cachedValues.get('outG')))
+        self.DwHo+=np.outer(cachedValues.get('hOld'),DO*cachedValues.get('outG')*(1-cachedValues.get('outG')))
+        self.Dbiaso+=DO*cachedValues.get('outG')*(1-cachedValues.get('outG'))
 
     #candidate weight grad
-        self.DwXc+=DCG*(1-(cachedValues.candG**2))*cachedValues.x
-        self.DwHc+=DCG*(1-(cachedValues.candG**2))*cachedValues.hOld
-        self.Dbiasc+=DCG*(1-(cachedValues.candG**2))
+        self.DwXc+=np.outer(cachedValues.get('x'),DCG*(1-(cachedValues.get('candG')**2)))
+        self.DwHc+=np.outer(cachedValues.get('hOld'),DCG*(1-(cachedValues.get('candG')**2)))
+        self.Dbiasc+=DCG*(1-(cachedValues.get('candG')**2))
 
    #input weight grad
-        self.DwXi+=DI*cachedValues.inputG*(1-cachedValues.inputG)*cachedValues.x
-        self.DwHi+=DI*cachedValues.inputG*(1-cachedValues.inputG)*cachedValues.hOld
-        self.Dbiasi+=DI*cachedValues.inputG*(1-cachedValues.inputG)
+        self.DwXi+=np.outer(cachedValues.get('x'),DI*cachedValues.get('inputG')*(1-cachedValues.get('inputG')))
+        self.DwHi+=np.outer(cachedValues.get('hOld'),DI*cachedValues.get('inputG')*(1-cachedValues.get('inputG')))
+        self.Dbiasi+=DI*cachedValues.get('inputG')*(1-cachedValues.get('inputG'))
 
    #forget Gate weight grad
-        self.DwXf+=DF*cachedValues.forgetG*(1-cachedValues.forgetG)*cachedValues.x
-        self.DwHf+=DF*cachedValues.forgetG*(1-cachedValues.forgetG)*cachedValues.hOld
-        self.Dbiasf+=DF*cachedValues.forgetG*(1-cachedValues.forgetG)
+        self.DwXf+=np.outer(cachedValues.get('x'),DF*cachedValues.get('forgetG')*(1-cachedValues.get('forgetG')))
+        self.DwHf+=np.outer(cachedValues.get('hOld'),DF*cachedValues.get('forgetG')*(1-cachedValues.get('forgetG')))
+        self.Dbiasf+=DF*cachedValues.get('forgetG')*(1-cachedValues.get('forgetG'))
         return DCellPrevT,DHPrevT
 
 
