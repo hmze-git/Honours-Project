@@ -1,5 +1,5 @@
 from LSTM import LSTMCell
-import numpy as np
+import cupy as np
 import math
 from DesnseLayer import DenseLayer
 import tensorflow.keras.datasets.mnist as mnist
@@ -10,6 +10,9 @@ import tensorflow.keras.datasets.mnist as mnist
 xtrainSmall=xtrain[:200]
 ytrainSmall=ytrain[:200]
 
+
+xtrainSmall=np.asarray(xtrainSmall)
+ytrainSmall=np.asarray(ytrainSmall)
 
 xtrainSmall=xtrainSmall.astype(np.float64)/255.0
 
