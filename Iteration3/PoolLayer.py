@@ -1,4 +1,4 @@
-import numpy as np
+import cupy as np
 from Filter import Filter
 
 class PoolLayer:
@@ -11,7 +11,7 @@ class PoolLayer:
         self.outputShape=(((height-poolFilterSize+(2*padding))//poolStride)+1,((width-poolFilterSize+(2*padding))//poolStride)+1,depth)
         self.stride=poolStride
         self.filterSize=poolFilterSize
-        self.maxIndices=np.zeros(self.inputShape,dtype='O')
+        self.maxIndices=np.zeros(self.inputShape,dtype=np.int32)
 
     def forward(self,input):
         outputHeight,outputWidth,outputDepth=self.outputShape
@@ -26,10 +26,10 @@ class PoolLayer:
                     #look for the highest value in that list return its index
                     maxIndex=np.argmax(patch)
                     #use max index and the original shape of the patch to get coordinates of the patch
-                    max2DCoords=np.unravel_index(maxIndex,patch.shape)
+                    #max2DCoords=np.unravel_index(maxIndex,patch.shape)
 
                     #if backprop breaks in pooiling check this logic
-                    self.maxIndices[r,c,d]=max2DCoords
+                    self.maxIndices[r,c,d]=int(maxIndex)
                     output[r,c,d]=np.max(patch)
         return output
     
@@ -41,7 +41,9 @@ class PoolLayer:
         for  d in range(outputDepth):
             for r in range(outputHeight):
                 for c in range(outputWidth):
-                    maxValH,MaxValW=self.maxIndices[r,c,d]
+
+                    index=int(self.maxIndices[r,c,d])
+                    maxValH,MaxValW=np.unravel_index(np.array(index),(self.filterSize,self.filterSize))
 
                     #use the row and stride with stored cordinates in the max indicies to update only the activation neuron that needs updating due to the layer after this one
                     dInput[r*self.stride+maxValH,c*self.stride+MaxValW,d]+=dOutput[r,c,d]

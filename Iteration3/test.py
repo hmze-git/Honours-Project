@@ -2,7 +2,7 @@ from ConvLayer import ConVLayer
 from PoolLayer import PoolLayer
 from DesnseLayer import DenseLayer
 from CNN import CNN 
-import numpy as np
+import cupy as np
 import math
 """
 #l=ConVLayer(2,3,(24,24,3))
@@ -37,14 +37,23 @@ model.forward(testInput)
 """
 import tensorflow.keras.datasets.mnist as mnist
 
+
+
 (xtrain,ytrain),(xtest,ytest)=mnist.load_data()
 
 print(xtrain.shape,ytrain.shape)
 print(xtest.shape,ytest.shape)
 
+xtrain=np.asarray(xtrain)
+xtest=np.asarray(xtest)
+
+ytrain=np.asarray(ytrain)
+ytest=np.asarray(ytest)
+
 
 xtrain=xtrain[...,np.newaxis].astype(np.float64)
 xtest=xtest[...,np.newaxis].astype(np.float64)
+
 
 xtrain/=255
 xtest/=255

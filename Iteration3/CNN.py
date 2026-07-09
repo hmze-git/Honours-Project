@@ -1,4 +1,4 @@
-import numpy as np
+import cupy as np
 from ConvLayer import ConVLayer
 from DesnseLayer import DenseLayer
 from PoolLayer import PoolLayer

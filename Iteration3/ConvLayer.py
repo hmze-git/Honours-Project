@@ -1,4 +1,4 @@
-import numpy as np
+import cupy as np
 from Filter import Filter
 
 class ConVLayer:
@@ -125,7 +125,6 @@ class ConVLayer:
             inputHeight,inputWidth,inputDepth=self.inputShape
             filterWidth=self.filterSize
             filterHeight=self.filterSize
-
             #first part gives number of entries 
             #second gives the number fo patches
             matCol=np.zeros((filterHeight*filterWidth*inputDepth,outputWidth*outputHeight))

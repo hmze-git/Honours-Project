@@ -2,68 +2,88 @@ from LSTM import LSTMCell
 import numpy as np
 import math
 from DesnseLayer import DenseLayer
+import tensorflow.keras.datasets.mnist as mnist
+
+(xtrain,ytrain),(xtest,ytest)=mnist.load_data()
+
+
+xtrainSmall=xtrain[:200]
+ytrainSmall=ytrain[:200]
+
+
+xtrainSmall=xtrainSmall.astype(np.float64)/255.0
+
 T=3
 
 
-inputsize=3
-hiddensize=3
-numclasses=5
+inputsize=28
+hiddensize=64
+numclasses=10
 
 
 
-X=np.random.randn(T,inputsize,)
-Y=np.random.randint(0,numclasses,T)
 
-H=np.random.randn(hiddensize,)
-C=np.random.randn(hiddensize,)
+def sparseCategoricalCrossEntropyLoss(prediction,trueLabelIndex):
 
-originalH=H
-originalC=C
+        epsilon=1e-12
+
+        #prediction array has all the probabilities
+        # true label as index will select the probability that is computed for true label
+        # if its high loss is low
+        # if it is low loss is high (very wrong)
+        return -np.log(prediction[trueLabelIndex]+epsilon)
+
 
 L=LSTMCell(inputsize,hiddensize)
 D=DenseLayer(numclasses,hiddensize,None,'SoftMax',None)
-params_to_check = {
-    # forget gate
-    'WeightFGInput': (L.WeightFGInput, L.DwXf),
-    'WeightFGHide':  (L.WeightFGHide,  L.DwHf),
-    'BiasFG':        (L.BiasFG,        L.Dbiasf),
-
-    # input gate
-    'WeightInGInput': (L.WeightInGInput, L.DwXi),
-    'WeightInGHide':  (L.WeightInGHide,  L.DwHi),
-    'BiasInG':        (L.BiasInG,        L.Dbiasi),
-
-    # candidate gate
-    'WeightCGInput': (L.WeightCGInput, L.DwXc),
-    'WeightCGHide':  (L.WeightCGHide,  L.DwHc),
-    'BiasCG':        (L.BiasCG,        L.Dbiasc),
-
-    # output gate
-    'WeightOutGInput': (L.WeightOutGInput, L.DwXo),
-    'WeightOutGHide':  (L.WeightOutGHide,  L.DwHo),
-    'BiasOutG':        (L.BiasOutG,        L.Dbiaso),
-}
-np.random.seed(0)
-for name, (W, _) in params_to_check.items():
-    W[:] = np.random.randn(*W.shape) * 0.1
-
-cArray=[]
-predicions=[]
-for i in range(T):
-    cached=L.forward(X[i],C,H)
-    H=cached.get('hnew')
-    C=cached.get('cnew')
-    cArray.append(cached)
-    Temp=D.forward(H)
-    predicions.append(Temp)
 
 
-DHPrevT=np.zeros(hiddensize)
-DCellPrevT=np.zeros(hiddensize)
-for i in reversed(range(T)):
-    DHDense=D.backward(predicions[i],Y[i])
-    DHTOT=DHDense+DHPrevT
-    DCellPrevT,DHPrevT=L.backward(cArray[i],DHTOT,DCellPrevT)
+
+
+
+for e in range(200):
+    totalLoss=0
+    predicions=[]
+    for x in range(200):
+        DHPrevT=np.zeros(hiddensize)
+        DCellPrevT=np.zeros(hiddensize)
+
+        H=np.zeros(hiddensize,)
+        C=np.zeros(hiddensize,)
+        cArray=[]
+
+        for i in range(28):
+           cObj=L.forward(xtrainSmall[x][i],C,H)
+           H=cObj.get('hnew')
+           C=cObj.get('cnew')
+           cArray.append(cObj)
+        prediction=D.forward(H)
+        predicions.append(prediction)
+
+        totalLoss+=sparseCategoricalCrossEntropyLoss(prediction,ytrainSmall[x])
+
+        DHDense=D.backward(prediction,ytrainSmall[x])
+     
+        for i in reversed(range(28)):
+        
+            if i==27:
+                DHTOT=DHDense+DHPrevT
+            else:
+                DHTOT=DHPrevT
+
+            DCellPrevT,DHPrevT= L.backward(cArray[i],DHTOT,DCellPrevT)
+
+       # print(f"Sample {x}:")
+       # print(f"  probs: {prediction}")
+       # print(f"  argmax: {np.argmax(prediction)}")
+       # print(f"  true label: {ytrain[x]}")
+
+        L.update(0.1)
+        L.zeroDeriGrad()
+    print(f"Epoch {e}: avg loss = {totalLoss/200:.4f}")
+    correct = sum(np.argmax(pred) == true for pred, true in zip(predicions, ytrainSmall))
+    print(f"Accuracy: {correct/200*100:.1f}%")
+
 
 
 def checkMat(WeightMatrix,dwAnalatica,forwardAndLoss,H,C,epsilon=1e-5):
@@ -115,21 +135,12 @@ def forwardAndLoss(H,C):
 
     return total_loss 
 
-def sparseCategoricalCrossEntropyLoss(prediction,trueLabelIndex):
-
-        epsilon=1e-12
-
-        #prediction array has all the probabilities
-        # true label as index will select the probability that is computed for true label
-        # if its high loss is low
-        # if it is low loss is high (very wrong)
-        return -np.log(prediction[trueLabelIndex]+epsilon)
     
 
+#
+##np.random.seed(0)
+#for name, (W, dW_analytical) in params_to_check.items():
 
-np.random.seed(0)
-for name, (W, dW_analytical) in params_to_check.items():
-
-    dW_numerical, relative_error = checkMat(W, dW_analytical,forwardAndLoss,originalH,originalC)
-    print(f"{name}: max relative error = {relative_error.max():.10f}")
+ #   dW_numerical, relative_error = checkMat(W, dW_analytical,forwardAndLoss,originalH,originalC)
+  #  print(f"{name}: max relative error = {relative_error.max():.10f}")
 
