@@ -1,7 +1,7 @@
 from LSTM import LSTMCell
 import cupy as np
 import math
-from DesnseLayer import DenseLayer
+from Iteration4.LSTMDesnseLayer import DenseLayer
 import tensorflow.keras.datasets.mnist as mnist
 
 (xtrain,ytrain),(xtest,ytest)=mnist.load_data()
