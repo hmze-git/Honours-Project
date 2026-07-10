@@ -19,20 +19,16 @@ class CNN:
         for layer in self.layers:
             nxtInput=layer.forward(nxtInput)
 
-       
-
-
-    
         return nxtInput
     
-    def backward(self,truelabelIndex):
+    def backward(self,frameIndex,truelabelIndex):
         dInput=None
 
         for layer in reversed(self.layers):
             if hasattr(layer,'requiresLabel')and layer.FinalLayer==True:
-                dInput=layer.backward(dInput,truelabelIndex)
+                dInput=layer.backward(dInput,frameIndex,truelabelIndex)
             else:
-                dInput=layer.backward(dInput)
+                dInput=layer.backward(dInput,frameIndex)
         return dInput
     
     def update(self,learnRate):
