@@ -55,3 +55,6 @@ class PoolLayer:
                     dInput[r*self.stride+maxValH,c*self.stride+MaxValW,d]+=dOutput[r,c,d]
 
         return dInput
+    
+    def clearCache(self):
+        self.frameCachedIndices=[]

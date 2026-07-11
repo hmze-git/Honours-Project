@@ -32,7 +32,7 @@ class ConVLayer:
         #think of X as input just reshaped
         X=self.convertIm2Col(input)
         
-        self.cachedIm2Col[X]
+        self.cachedIm2Col.append(X)
 
         #stack the weights as row vectors because the columns of X are patches
         WeightVector=np.stack([f.weights.flatten() for f in self.filters],axis=0)
@@ -144,5 +144,10 @@ class ConVLayer:
                     x+=1
             return matCol
                     
+    def clearCache(self):
+        self.cachedInput=[]
+        self.cachedIm2Col=[]
+        self.cachedZVal=[]
 
-
+        for filt in self.filters:
+            filt.clearGradient()

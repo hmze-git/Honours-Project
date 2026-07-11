@@ -50,7 +50,7 @@ class DenseLayer:
             return self.Activation
     
     #DA is obtained from layer in 'front' as that provides cha
-    def backward(self,DA,frameIndex,trueLabelIndex):
+    def backward(self,DA,frameIndex,trueLabelIndex=None):
         if self.actFunction=='ReLu':
             Dz=DA*self.derivative_ReLU(self.cachedZVal[frameIndex])
         if self.actFunction=='SoftMax':
@@ -67,8 +67,15 @@ class DenseLayer:
         Db=Dz
 
         #accumulate the derivative across frames 
-        self.Dw+=Dw
-        self.Db+=Db
+        # on the very first 
+        if self.Dw is None and self.Db is None:
+            self.Dw=Dw
+            self.Db=Db
+        else:
+            self.Dw+=Dw
+            self.Db+=Db
+
+
 
 
         #maybe need to transpose weights
@@ -102,3 +109,8 @@ class DenseLayer:
 
         self.Weights-=self.Dw*learnrate
         self.bias-=self.Db*learnrate 
+    def clearCache(self):
+        self.cachedFlatInput=[]
+        self.cachedZVal=[]
+        self.Dw=None
+        self.Db=None

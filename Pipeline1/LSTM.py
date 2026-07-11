@@ -150,6 +150,12 @@ class LSTMCell:
         #note that use preactivation so first apply derivative of the activation functions for each gate
         DHPrevT=self.WeightFGHide@DFGpre +self.WeightCGHide@DCGpre+self.WeightInGHide@DIGpre+self.WeightOutGHide@DOgpre
 
+        
+        #change in loss by changing input slighly
+        #used to back propagate through the CNN
+        DXt=self.WeightFGInput@DFGpre +self.WeightCGInput@DCGpre+self.WeightInGInput@DIGpre+self.WeightOutGInput@DOgpre
+
+
     # weight Gradients
     #outputGate weight grad
 
@@ -172,7 +178,7 @@ class LSTMCell:
         self.DwXf+=np.outer(cachedValues.get('x'),DF*cachedValues.get('forgetG')*(1-cachedValues.get('forgetG')))
         self.DwHf+=np.outer(cachedValues.get('hOld'),DF*cachedValues.get('forgetG')*(1-cachedValues.get('forgetG')))
         self.Dbiasf+=DF*cachedValues.get('forgetG')*(1-cachedValues.get('forgetG'))
-        return DCellPrevT,DHPrevT
+        return DCellPrevT,DHPrevT,DXt
 
 
     def update(self,learnRate):

@@ -1,7 +1,7 @@
 import cupy as np
 from Filter import Filter
 
-class DenseLayer:
+class LSTMDenseLayer:
     def __init__(self,numOutputNeurons,inputSize,priorBias,activationFunction='ReLu',priorWeights=None):
 
         self.numOutNeurons=numOutputNeurons

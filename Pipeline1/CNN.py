@@ -2,7 +2,7 @@ import cupy as np
 from ConvLayer import ConVLayer
 from DesnseLayer import DenseLayer
 from PoolLayer import PoolLayer
-
+import time
 
 class CNN:
     
@@ -16,13 +16,22 @@ class CNN:
 
     def forward(self,input):
         nxtInput=input
+        count=0
+
+        
         for layer in self.layers:
+            #start=time.time()
             nxtInput=layer.forward(nxtInput)
+
+            #end=time.time()
+
+            #print(f'Time for layer {count} {end-start}')
+            count+=1
 
         return nxtInput
     
-    def backward(self,frameIndex,truelabelIndex):
-        dInput=None
+    def backward(self,frameIndex,dInput,truelabelIndex):
+
 
         for layer in reversed(self.layers):
             if hasattr(layer,'requiresLabel')and layer.FinalLayer==True:
@@ -35,6 +44,9 @@ class CNN:
         for layer in self.layers:
             if hasattr(layer,'updateParameters'):
                 layer.updateParameters(learnRate)
+    def resetCacheWeights(self):
+        for layer in self.layers:
+            layer.clearCache()
 
     def sparseCategoricalCrossEntropyLoss(self,prediction,trueLabelIndex):
 

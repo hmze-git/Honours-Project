@@ -12,8 +12,9 @@ class Filter:
         self.bias=bias
         self.width=fWidth
         self.height=fHeight
-        self.dWeights=None
-        self.dBias=None
+        self.depth=fDepth
+        self.dWeights=np.zeros((fHeight,fWidth,fDepth))
+        self.dBias=0
 
 
     #take the patch sliced out
@@ -23,3 +24,7 @@ class Filter:
     def applyFilter(self,patch):    
         # bias is not a matrix but rather a single value linked to every resulting entry/"neuron"
         return np.sum(self.weights*patch)+self.bias
+    
+    def clearGradient(self):
+        self.dWeights=np.zeros((self.height,self.width,self.depth))
+        self.dBias=0
