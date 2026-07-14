@@ -117,10 +117,13 @@ class LSTMCNN:
                     DCellPrevT,DHPrevT,DXt= self.temporal.backward(cArray[f],DHTOT,DCellPrevT)
                     self.spatialExtractor.backward(f,DXt,None)# CNN never final layer so doesnt need it
 
-                
+                self.classifier2.updateParameters(LR)
+                self.classifier1.updateParameters(LR)
                 self.temporal.update(LR)
-                self.temporal.zeroDeriGrad()
                 self.spatialExtractor.update(LR)
+                self.classifier2.clearDerivativeCache()
+                self.classifier1.clearDerivativeCache()
+                self.temporal.zeroDeriGrad()
                 self.spatialExtractor.resetCacheWeights()
                 
             endTimeEpoch=time.time()

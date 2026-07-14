@@ -97,4 +97,7 @@ class LSTMDenseLayer:
     def updateParameters(self,learnrate):
 
         self.Weights-=self.Dw*learnrate
-        self.bias-=self.Db*learnrate 
+        self.bias-=self.Db*learnrate
+    def clearDerivativeCache(self):
+         self.Dw=None
+         self.Db=None

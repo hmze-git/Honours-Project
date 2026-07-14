@@ -54,7 +54,7 @@ class DenseLayer:
         if self.actFunction=='ReLu':
             Dz=DA*self.derivative_ReLU(self.cachedZVal[frameIndex])
         if self.actFunction=='SoftMax':
-            Dz=self.Activation.copy()
+            Dz=self.Activation.copy() #remember that this doesnt need cahche because if its ever softmax its the final layer so it wouldntbe sharing with anything else
             Dz[trueLabelIndex]-=1
         
         #DZ is updated activation output which is a col vector
