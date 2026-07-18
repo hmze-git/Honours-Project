@@ -9,26 +9,26 @@ import pickle
 class TFLSTMCNN:
     def __init__(self,inputShape,hiddenSize,numClasses=3,learnRate=0.01):
         self.LSTMCNN=models.Sequential()
-        self.LSTMCNN.add(layers.Timelayers.TimeDistributed(layers.Conv2D(32,kernel_size=(2,2),strides=1,padding='valid',input_shape=inputShape)))
-        self.LSTMCNN.add(layers.Timelayers.TimeDistributed(layers.Conv2D(32,kernel_size=(2,2),strides=1,padding='same')))
+        self.LSTMCNN.add(layers.TimeDistributed(layers.Conv2D(32,kernel_size=(2,2),strides=1,padding='valid',input_shape=inputShape)))
+        self.LSTMCNN.add(layers.TimeDistributed(layers.Conv2D(32,kernel_size=(2,2),strides=1,padding='same')))
         #add batch normalisation once batching added in
-        self.LSTMCNN.add(layers.Timelayers.TimeDistributed(layers.MaxPool2D(2,2)))
+        self.LSTMCNN.add(layers.TimeDistributed(layers.MaxPool2D(2,2)))
 
 
-        self.LSTMCNN.add(layers.Timelayers.TimeDistributed(layers.Conv2D(64,kernel_size=(2,2),strides=1,padding='valid')))
-        self.LSTMCNN.add(layers.Timelayers.TimeDistributed(layers.Conv2D(64,kernel_size=(2,2),strides=1,padding='same')))
+        self.LSTMCNN.add(layers.TimeDistributed(layers.Conv2D(64,kernel_size=(2,2),strides=1,padding='valid')))
+        self.LSTMCNN.add(layers.TimeDistributed(layers.Conv2D(64,kernel_size=(2,2),strides=1,padding='same')))
         #add batch normalisation once batching added in
-        self.LSTMCNN.add(layers.Timelayers.TimeDistributed(layers.MaxPool2D(2,2)))
+        self.LSTMCNN.add(layers.TimeDistributed(layers.MaxPool2D(2,2)))
 
 
-        self.LSTMCNN.add(layers.Timelayers.TimeDistributed(layers.Conv2D(128,kernel_size=(2,2),strides=1,padding='valid')))
-        self.LSTMCNN.add(layers.Timelayers.TimeDistributed(layers.Conv2D(128,kernel_size=(2,2),strides=1,padding='same')))
+        self.LSTMCNN.add(layers.TimeDistributed(layers.Conv2D(128,kernel_size=(2,2),strides=1,padding='valid')))
+        self.LSTMCNN.add(layers.TimeDistributed(layers.Conv2D(128,kernel_size=(2,2),strides=1,padding='same')))
         #add batch normalisation once batching added in
-        self.LSTMCNN.add(layers.Timelayers.TimeDistributed(layers.MaxPool2D(2,2)))
+        self.LSTMCNN.add(layers.TimeDistributed(layers.MaxPool2D(2,2)))
 
-        self.LSTMCNN.add(layers.Timelayers.TimeDistributed(layers.Flatten()))
-        self.LSTMCNN.add(layers.Timelayers.TimeDistributed(layers.Dense(256,activation='relu')))
-        self.LSTMCNN.add(layers.Timelayers.TimeDistributed(layers.Dense(128,activation='relu')))
+        self.LSTMCNN.add(layers.TimeDistributed(layers.Flatten()))
+        self.LSTMCNN.add(layers.TimeDistributed(layers.Dense(256,activation='relu')))
+        self.LSTMCNN.add(layers.TimeDistributed(layers.Dense(128,activation='relu')))
         self.LSTMCNN.add(layers.LSTM(hiddenSize,))
 
 
@@ -39,16 +39,14 @@ class TFLSTMCNN:
 
         self.LSTMCNN.compile(
             optimizer=tf.keras.optimizers.SGD(learning_rate=learnRate, momentum=0.9),
-            loss='sparse_categorical_accuracy',
+            loss='sparse_categorical_crossentropy',
             metrics=['accuracy']
         )
 
 
-    def  train(self,epochs,xSet,ySet):
+    def  train(self,epochs,dataset):
         self.LSTMCNN.fit(
-            x=xSet,
-            y=ySet,
-            batch_size=0,
+            dataset,
             epochs=epochs
         )
 
