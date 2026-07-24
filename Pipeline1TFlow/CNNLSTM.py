@@ -5,40 +5,64 @@ import math
 import time
 import pickle
 import numpy as np
+from matplotlib import pyplot as plt
 
 #following the structure by singh et. al. make the hidden size 128 as that is the size of their first dense layer
 class TFLSTMCNN:
-    def __init__(self,inputShape,hiddenSize,numClasses=3,learnRate=0.001):
+    def __init__(self,inputShape,hiddenSize,numClasses=3,learnRate=0.0005):
         self.LSTMCNN=models.Sequential()
-        self.LSTMCNN.add(layers.Input(shape=inputShape))
-        self.LSTMCNN.add(layers.TimeDistributed(layers.Conv2D(8,kernel_size=(3,3),strides=1,padding='valid',activation='relu')))
-        self.LSTMCNN.add(layers.TimeDistributed(layers.Conv2D(8,kernel_size=(3,3),strides=1,padding='same',activation='relu')))
+        #self.LSTMCNN.add(layers.Input(shape=inputShape))
+        #self.LSTMCNN.add(layers.TimeDistributed(layers.Conv2D(8,kernel_size=(3,3),strides=1,padding='valid',activation='relu')))
+        #self.LSTMCNN.add(layers.TimeDistributed(layers.Conv2D(8,kernel_size=(3,3),strides=1,padding='same',activation='relu')))
         #add batch normalisation once batching added in
-        self.LSTMCNN.add(layers.TimeDistributed(layers.BatchNormalization()))
-        self.LSTMCNN.add(layers.TimeDistributed(layers.MaxPool2D(2,2)))
+        #self.LSTMCNN.add(layers.TimeDistributed(layers.BatchNormalization()))
+        #self.LSTMCNN.add(layers.TimeDistributed(layers.MaxPool2D(2,2)))
 
 
-        self.LSTMCNN.add(layers.TimeDistributed(layers.Conv2D(16,kernel_size=(3,3),strides=1,padding='valid',activation='relu')))
-        self.LSTMCNN.add(layers.TimeDistributed(layers.Conv2D(16,kernel_size=(3,3),strides=1,padding='same',activation='relu')))
+        #self.LSTMCNN.add(layers.TimeDistributed(layers.Conv2D(16,kernel_size=(3,3),strides=1,padding='valid',activation='relu')))
+        #self.LSTMCNN.add(layers.TimeDistributed(layers.Conv2D(16,kernel_size=(3,3),strides=1,padding='same',activation='relu')))
         #add batch normalisation once batching added in
-        self.LSTMCNN.add(layers.TimeDistributed(layers.BatchNormalization()))
-        self.LSTMCNN.add(layers.TimeDistributed(layers.MaxPool2D(2,2)))
+        #self.LSTMCNN.add(layers.TimeDistributed(layers.BatchNormalization()))
+        #self.LSTMCNN.add(layers.TimeDistributed(layers.MaxPool2D(2,2)))
 
 
-        self.LSTMCNN.add(layers.TimeDistributed(layers.Conv2D(32,kernel_size=(3,3),strides=1,padding='valid',activation='relu')))
-        self.LSTMCNN.add(layers.TimeDistributed(layers.Conv2D(32,kernel_size=(3,3),strides=1,padding='same',activation='relu')))
+        #self.LSTMCNN.add(layers.TimeDistributed(layers.Conv2D(32,kernel_size=(3,3),strides=1,padding='valid',activation='relu')))
+        #self.LSTMCNN.add(layers.TimeDistributed(layers.Conv2D(32,kernel_size=(3,3),strides=1,padding='same',activation='relu')))
         #add batch normalisation once batching added in
-        self.LSTMCNN.add(layers.TimeDistributed(layers.BatchNormalization()))
-        self.LSTMCNN.add(layers.TimeDistributed(layers.MaxPool2D(2,2)))
+        #self.LSTMCNN.add(layers.TimeDistributed(layers.BatchNormalization()))
+        #self.LSTMCNN.add(layers.TimeDistributed(layers.MaxPool2D(2,2)))
 
         #self.LSTMCNN.add(layers.TimeDistributed(layers.Flatten()))
         
-        self.LSTMCNN.add(layers.TimeDistributed(layers.GlobalAveragePooling2D()))
-        self.LSTMCNN.add(layers.TimeDistributed(layers.Dense(64,activation='relu')))
+        #self.LSTMCNN.add(layers.Ti meDistributed(layers.GlobalAveragePooling2D()))
+        #self.LSTMCNN.add(layers.TimeDistributed(layers.Dense(64,activation='relu')))
+        #self.LSTMCNN.add(layers.TimeDistributed(layers.BatchNormalization()))
+
+
+
+        # VGGNET HERE
+        print(inputShape)
+
+        baseCNN=tf.keras.applications.VGG16(
+            input_shape=inputShape[1:],
+            weights="imagenet",
+            include_top=False,
+            pooling='avg'
+        )
+        baseCNN.trainable = False
+
+
+
+        #overfitting is happening somewhere here 
+        #so look into that
+        #either lstm sequence is too long, hidden size also might be too big or the dropout needs to be more aggresive
+        self.LSTMCNN.add(layers.TimeDistributed(baseCNN))
         self.LSTMCNN.add(layers.TimeDistributed(layers.BatchNormalization()))
 
-        self.LSTMCNN.add(layers.LSTM(hiddenSize,unroll=True))
 
+
+        self.LSTMCNN.add(layers.LSTM(hiddenSize,unroll=True))
+        self.LSTMCNN.add(layers.Dropout(0.25))
 
         #final 2 dense classificaiton heads
         self.LSTMCNN.add(layers.Dense(32,activation='relu'))
@@ -50,39 +74,38 @@ class TFLSTMCNN:
             loss='sparse_categorical_crossentropy',
             metrics=['accuracy']
         )
+        
 
 
     def  train(self,epochs,dataset,validSet):
-        self.LSTMCNN.fit(
+        callack=tf.keras.callbacks.EarlyStopping(monitor='val_loss',patience=5)
+        hist=self.LSTMCNN.fit(
             dataset,
             validation_data=validSet,
-            epochs=epochs
+            epochs=epochs,
+            callbacks=[callack]
         )
+        print(hist.history.keys())
+        plt.plot(hist.history['accuracy'])
+        plt.plot(hist.history['val_accuracy'])
+        plt.title('Model Accuracy')
+        plt.ylabel('accuracy')
+        plt.xlabel('epoch')
+        plt.legend(['train','val'])
+        plt.savefig('NormVsValACc.png')
+        plt.clf()
 
-    def checkGradient(self,dataset):
+        plt.plot(hist.history['loss'])
+        plt.plot(hist.history['val_loss'])
+        plt.title('Model Loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend(['train','val'])
+        plt.savefig('NormVsValLoss.png')
 
-        for xB,yB in dataset.take(20):
 
-            with tf.GradientTape() as tape:
-                preds=self.LSTMCNN(xB,training=True)
-                loss=tf.keras.losses.sparse_categorical_crossentropy(yB,preds)
-                loss=tf.reduce_mean(loss)
-            
-            grads=tape.gradient(loss,self.LSTMCNN.trainable_variables)
-            print(f"\nLoss on this batch: {loss.numpy():.6f}\n")
 
-            # Step 3: group gradient norms by top-level layer name
-            layerGradNorms = {}
-            for var, grad in zip(self.LSTMCNN.trainable_variables, grads):
-                layerName = var.name.split('/')[0]
-                if grad is None:
-                    print(f"WARNING: {var.name} has NO gradient (None)")
-                    continue
-                gradNorm = tf.norm(grad).numpy()
-                layerGradNorms.setdefault(layerName, []).append(gradNorm)
 
-            # Step 4: print summary, in the order layers were added to the model
-            print(f"{'Layer':35s} {'Mean Grad Norm':>15s} {'Max Grad Norm':>15s} {'Min Grad Norm':>15s}")
-            print("-" * 82)
-            for layer, norms in layerGradNorms.items():
-                print(f"{layer:35s} {np.mean(norms):>15.8f} {np.max(norms):>15.8f} {np.min(norms):>15.8f}")
+    
+
+

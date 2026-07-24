@@ -67,7 +67,7 @@ validationSet = validationSet.prefetch(tf.data.AUTOTUNE)
 
 
 
-LCNN.train(150,dataset,validationSet)
+LCNN.train(30,dataset,validationSet)
 
 
 preds=LCNN.LSTMCNN.predict(validationSet)
