@@ -61,7 +61,7 @@ class TFLSTMCNN:
 
 
 
-        self.LSTMCNN.add(layers.LSTM(hiddenSize,unroll=True))
+        self.LSTMCNN.add(layers.LSTM(hiddenSize,unroll=True,recurrent_dropout=0.3))
         self.LSTMCNN.add(layers.Dropout(0.25))
 
         #final 2 dense classificaiton heads
