@@ -54,12 +54,12 @@ validationSet=tf.data.Dataset.from_generator(
 
 
 dataset = dataset.shuffle(buffer_size=1050)
-dataset = dataset.batch(batch_size=4)
+dataset = dataset.batch(batch_size=2)
 dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
 
 
-validationSet = validationSet.shuffle(buffer_size=225)
+
 validationSet = validationSet.batch(batch_size=4)
 validationSet = validationSet.prefetch(tf.data.AUTOTUNE)
 
@@ -69,18 +69,7 @@ validationSet = validationSet.prefetch(tf.data.AUTOTUNE)
 
 LCNN.train(30,dataset,validationSet)
 
-
-preds=LCNN.LSTMCNN.predict(validationSet)
-
-predLabels=np.argmax(preds,axis=1)
-trueLabels=np.concatenate([y.numpy() for x,y in validationSet],axis=0)
-
-cm=confusion_matrix(predLabels,trueLabels)
-
-disp=ConfusionMatrixDisplay(confusion_matrix=cm,display_labels=[0,1,2])
-disp.plot(cmap='Blues')
-plt.savefig('confMatrix.png')
-plt.show()
+LCNN.confusionMatrix(validationSet)
 
 
 #with open('Save_Model_epoch_2','rb') as f:

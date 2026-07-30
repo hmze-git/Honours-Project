@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras import layers,models
 from tensorflow.keras.metrics import Precision,Recall
+from sklearn.metrics import confusion_matrix,ConfusionMatrixDisplay
 import math
 import time
 import pickle
@@ -61,29 +62,31 @@ class TFLSTMCNN:
 
 
 
-        self.LSTMCNN.add(layers.LSTM(hiddenSize,unroll=True,recurrent_dropout=0.3))
+        self.LSTMCNN.add(layers.LSTM(hiddenSize,unroll=True,recurrent_dropout=0.3,kernel_regularizer='l2'))
         self.LSTMCNN.add(layers.Dropout(0.25))
 
         #final 2 dense classificaiton heads
-        self.LSTMCNN.add(layers.Dense(32,activation='relu'))
+        #mayb add another head above this with size 128 or 64
+        self.LSTMCNN.add(layers.Dense(32,activation='relu',kernel_regularizer='l2'))
         self.LSTMCNN.add(layers.Dropout(0.25))
         self.LSTMCNN.add(layers.Dense(numClasses,activation='softmax'))
 
         self.LSTMCNN.compile(
             optimizer=tf.keras.optimizers.Adam(learning_rate=learnRate),
             loss='sparse_categorical_crossentropy',
-            metrics=['accuracy']
+            metrics=['accuracy','sparse_categorical_crossentropy']
         )
         
 
 
     def  train(self,epochs,dataset,validSet):
-        callack=tf.keras.callbacks.EarlyStopping(monitor='val_loss',patience=5)
+        earlyStop=tf.keras.callbacks.EarlyStopping(monitor='val_loss',patience=5,restore_best_weights=True)
+        checkPoint=tf.keras.callbacks.ModelCheckpoint('LSTMVGG16.keras',save_best_only=True,save_freq=5)
         hist=self.LSTMCNN.fit(
             dataset,
             validation_data=validSet,
             epochs=epochs,
-            callbacks=[callack]
+            callbacks=[earlyStop,checkPoint]
         )
         print(hist.history.keys())
         plt.plot(hist.history['accuracy'])
@@ -103,8 +106,24 @@ class TFLSTMCNN:
         plt.legend(['train','val'])
         plt.savefig('NormVsValLoss.png')
 
+        self.confusionMatrix(validSet)
 
+    def evaluate(self,dataset):
+        pass
+    def confusionMatrix(self,validationDataset):
 
+       
+        preds=self.LSTMCNN.predict(validationDataset)
+
+        predLabels=np.argmax(preds,axis=1)
+        trueLabels=np.concatenate([y.numpy() for x,y in validationDataset],axis=0)
+
+        cm=confusion_matrix(trueLabels,predLabels)
+
+        disp=ConfusionMatrixDisplay(confusion_matrix=cm,display_labels=[0,1,2])
+        disp.plot(cmap='Blues')
+        plt.savefig('confMatrix.png')
+        plt.show()
 
     
 
