@@ -74,19 +74,20 @@ class TFLSTMCNN:
         self.LSTMCNN.compile(
             optimizer=tf.keras.optimizers.Adam(learning_rate=learnRate),
             loss='sparse_categorical_crossentropy',
-            metrics=['accuracy','sparse_categorical_crossentropy']
+            metrics=['accuracy']
         )
         
 
 
     def  train(self,epochs,dataset,validSet):
         earlyStop=tf.keras.callbacks.EarlyStopping(monitor='val_loss',patience=5,restore_best_weights=True)
-        checkPoint=tf.keras.callbacks.ModelCheckpoint('LSTMVGG16.keras',save_best_only=True,save_freq=5)
+        checkPoint=tf.keras.callbacks.ModelCheckpoint('LSTMVGG16.keras',save_best_only=True)
         hist=self.LSTMCNN.fit(
             dataset,
             validation_data=validSet,
             epochs=epochs,
-            callbacks=[earlyStop,checkPoint]
+            callbacks=[earlyStop,checkPoint],
+            verbose=2
         )
         print(hist.history.keys())
         plt.plot(hist.history['accuracy'])

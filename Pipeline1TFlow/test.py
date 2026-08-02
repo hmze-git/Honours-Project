@@ -60,16 +60,16 @@ dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
 
 
-validationSet = validationSet.batch(batch_size=4)
+validationSet = validationSet.batch(batch_size=2)
 validationSet = validationSet.prefetch(tf.data.AUTOTUNE)
 
 
 
 
 
-LCNN.train(30,dataset,validationSet)
+LCNN.train(1,dataset,validationSet)
 
-LCNN.confusionMatrix(validationSet)
+
 
 
 #with open('Save_Model_epoch_2','rb') as f:

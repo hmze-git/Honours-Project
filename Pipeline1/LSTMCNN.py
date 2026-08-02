@@ -4,10 +4,13 @@ from ConvLayer import ConVLayer
 from PoolLayer import PoolLayer
 from DesnseLayer import DenseLayer
 from LSTMDesnseLayer import LSTMDenseLayer
-import cupy as np
+import cupy as cp
+import numpy as np
 import math
 import time
 import pickle
+from matplotlib import pyplot as plt
+from sklearn.metrics import confusion_matrix,ConfusionMatrixDisplay
 
 
 
@@ -57,7 +60,10 @@ class LSTMCNN:
             self.classifier1=LSTMDenseLayer(32,hiddenSize,None,'ReLu')
             self.classifier2=LSTMDenseLayer(numClasses,self.classifier1.numOutNeurons,None,'SoftMax',None)
             self.accuracy=[]
+            self.valAccuracy=[]
             self.loss=[]
+            self.valLoss=[]
+            self.trainTimes=[]
             self.numEpochs=0
 
 
@@ -65,21 +71,35 @@ class LSTMCNN:
 
         numVideos,numFrames,numRows,numCols,depth=self.xTrain.shape
         self.numEpochs=epochs
-    
+
+        numVideos=1050
+        maxCount=5 #only do 150 videos so the permuations can be on full set that way we randomly get entries and dont just take first batch
         for e in range(epochs):
-            predicions=[]
+            
             totalLoss=0
             startTime=time.time()
-            for v in range(numVideos):
+            
+          
 
-                DHPrevT=np.zeros(self.hiddenSize)
-                DCellPrevT=np.zeros(self.hiddenSize)
+            shuffledIndex=np.random.permutation(numVideos)
+            #stick top 150 videos for now because otherwise it takes too long with 224x224
+            counter=0
+            visitedIndices=[]
+            for v in shuffledIndex:
+                if counter==maxCount:
+                     break
+                v=int(v)
+                visitedIndices.append(v)
 
-                H=np.zeros(self.hiddenSize,)
-                C=np.zeros(self.hiddenSize,)
+                DHPrevT=cp.zeros(self.hiddenSize)
+                DCellPrevT=cp.zeros(self.hiddenSize)
+
+                H=cp.zeros(self.hiddenSize,)
+                C=cp.zeros(self.hiddenSize,)
                 cArray=[]
                 for f in range(self.frameLengthPV[v]):
-                    frame=self.xTrain[v,f,:,:,:]
+                    frame=cp.asarray(self.xTrain[v,f,:,:,:])
+                    frame=frame.astype(cp.float64)
 
                     #startCNN=time.time()
                     lstmInput=self.spatialExtractor.forward(frame)
@@ -100,10 +120,7 @@ class LSTMCNN:
                     cArray.append(lstmCache)
 
                 secondLastOutput=self.classifier1.forward(H)
-                prediction=self.classifier2.forward(secondLastOutput)
-                predicions.append(prediction)
-                totalLoss+=self.sparseCategoricalCrossEntropyLoss(prediction,self.yTrain[v])
-                
+                prediction=self.classifier2.forward(secondLastOutput) 
                 DHC2=self.classifier2.backward(prediction,self.yTrain[v])
                 DHC1=self.classifier1.backward(DHC2,self.yTrain[v]) #RELU so doesnt need the label
 
@@ -125,25 +142,47 @@ class LSTMCNN:
                 self.classifier1.clearDerivativeCache()
                 self.temporal.zeroDeriGrad()
                 self.spatialExtractor.resetCacheWeights()
-                
-            endTimeEpoch=time.time()
-            print(f"End Time epoch  {e} for {numVideos} vids {endTimeEpoch-startTime}")
-            print(f"Epoch {e}: avg loss = {totalLoss/numVideos}")
-            numCorrect=0
-            for p,trueLabel in zip(predicions,self.yTrain):
-                if np.argmax(p)==trueLabel:
-                    numCorrect+=1
-            self.accuracy.append(numCorrect)
-            print(f"Accuracy: {(numCorrect/numVideos)*100}%") 
-            self.saveModel(f'Save_Model_epoch_{e}') 
 
+                #increment the count
+                counter+=1
+                
+          
+
+
+            numCorrect=0
+            #this way compare only what we want 
+            for v in visitedIndices:
+
+                prediction=self.predict(self.xTrain[v],self.frameLengthPV[v])
+                totalLoss+=self.sparseCategoricalCrossEntropyLoss(prediction,self.yTrain[v])
+
+                if cp.argmax(prediction)==self.yTrain[v]:
+                        numCorrect+=1
+
+            print(f"Epoch {e}: avg loss ={totalLoss/maxCount}")
+            print(f"Accuracy: {(numCorrect/maxCount)*100}%") 
+            self.accuracy.append(numCorrect/maxCount)
+            self.loss.append(float(totalLoss/maxCount))
+
+            self.validation(self.xTrain,self.yTrain,self.frameLengthPV,visitedIndices,e)
+            endTimeEpoch=time.time()
+
+
+            timeTake=endTimeEpoch-startTime
+            self.trainTimes.append(timeTake)
+            print(f"End Time epoch  {e} for {maxCount} vids {timeTake}")     
+         
+           
+            #self.saveModel(f'Save_Model_epoch_{e}') 
+        self.plotCurves()
 
     def predict(self,Xinput,frameLength):
-                H=np.zeros(self.hiddenSize,)
-                C=np.zeros(self.hiddenSize,)
+                H=cp.zeros(self.hiddenSize,)
+                C=cp.zeros(self.hiddenSize,)
                 cArray=[]
                 for f in range(frameLength):
-                    frame=Xinput[f,::]
+                    frame=cp.asarray(Xinput[f,::])
+                    frame=frame.astype(cp.float64)
 
                     #startCNN=time.time()
                     lstmInput=self.spatialExtractor.forward(frame)
@@ -162,7 +201,79 @@ class LSTMCNN:
     def saveModel(self,path):
         with open(path,'wb') as f:
             pickle.dump(self,f)
+
+    def validation(self,xValid,yValid,xVidLength,visitedVideos,epoch):
+        numVideos,numFrames,numRows,numCols,depth=xValid.shape
+
+        count=0
+        shuffledIndex=np.random.permutation(numVideos)
+        numCorrect=0
+        totalLoss=0
+        for v in shuffledIndex:
+            v=int(v)
+            if count==len(visitedVideos):
+                break
+
+            if v in visitedVideos:
+                 continue
+            
+
+            prediction=self.predict(xValid[v],xVidLength[v])
+            totalLoss+=self.sparseCategoricalCrossEntropyLoss(prediction,yValid[v])
+            if cp.argmax(prediction)==yValid[v]:
+                numCorrect+=1
+            count+=1
+        print(f"Epoch {epoch}: avg loss ={totalLoss/len(visitedVideos)}")
+        print(f"Validation Accuracy: {(numCorrect/len(visitedVideos))*100}%") 
+        self.valAccuracy.append(numCorrect/len(visitedVideos))
+        self.valLoss.append(float(totalLoss/len(visitedVideos)))
         
+
+        
+        
+    def plotCurves(self):
+        plt.plot(self.accuracy)
+        plt.plot(self.valAccuracy)
+        plt.title('Model Accuracy')
+        plt.ylabel('accuracy')
+        plt.xlabel('epoch')
+        plt.legend(['train','val'])
+        plt.savefig('NormVsValACc.png')
+        plt.clf()
+
+        plt.plot(self.loss)
+        plt.plot(self.valLoss)
+
+        plt.title('Model Loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend(['train','val'])
+        plt.savefig('NormVsValLoss.png')
+
+        #hardcoded but should be full dataset size sort out later
+        shuffledIndex=np.random.permutation(1050)
+
+
+        counter=0
+        predLabel=[]
+        trueLabels=[]
+        for v in shuffledIndex:
+            v=int(v)
+
+            if counter==5: #temp hardcoded val fix later 
+                 break
+
+            p=self.predict(self.xTrain[v],self.frameLengthPV[v])
+            predLabel.append(int(cp.argmax(p)))
+            trueLabels.append(self.yTrain[v]) #passed in as numpy array so no need to convert it 
+            counter+=1
+     
+
+        cm=confusion_matrix(trueLabels,predLabel)
+        disp=ConfusionMatrixDisplay(confusion_matrix=cm,display_labels=[0,1,2])
+        disp.plot(cmap='Blues')
+        plt.savefig('confMatrix.png')
+        plt.show()
 
             
     def sparseCategoricalCrossEntropyLoss(self,prediction,trueLabelIndex):
@@ -173,5 +284,5 @@ class LSTMCNN:
             # true label as index will select the probability that is computed for true label
             # if its high loss is low
             # if it is low loss is high (very wrong)
-            return -np.log(prediction[trueLabelIndex]+epsilon)
+            return -cp.log(prediction[trueLabelIndex]+epsilon)
 
