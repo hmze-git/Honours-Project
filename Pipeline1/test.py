@@ -17,7 +17,7 @@ numClasses=3
 
 LCNN=LSTMCNN(xTrain,yTrain,frameLengthPV,(64,64,3),hiddenSize,numClasses)
 
-LCNN.train(2,0.1)
+LCNN.train(5,0.01)
 
 #with open('Save_Model_epoch_2','rb') as f:
  #           model=pickle.load(f)

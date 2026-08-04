@@ -71,18 +71,6 @@ class PoolLayer:
 
         np.add.at(dInput,(windowXPos,windowYPos,depthVector),dOutput)
 
-        
-                
-       # for  d in range(outputDepth):
-        #    for r in range(outputHeight):
-         #       for c in range(outputWidth):
-
-          #          index=int(self.maxIndices[r,c,d])
-           #         maxValH,MaxValW=np.unravel_index(np.array(index),(self.filterSize,self.filterSize))
-
-                    #use the row and stride with stored cordinates in the max indicies to update only the activation neuron that needs updating due to the layer after this one
-            #        dInput[r*self.stride+maxValH,c*self.stride+MaxValW,d]+=dOutput[r,c,d]
-
         return dInput
     
 

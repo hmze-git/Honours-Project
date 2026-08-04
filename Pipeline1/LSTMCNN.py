@@ -73,7 +73,7 @@ class LSTMCNN:
         self.numEpochs=epochs
 
         numVideos=1050
-        maxCount=5 #only do 150 videos so the permuations can be on full set that way we randomly get entries and dont just take first batch
+        maxCount=150 #only do 150 videos so the permuations can be on full set that way we randomly get entries and dont just take first batch
         for e in range(epochs):
             
             totalLoss=0
@@ -99,7 +99,7 @@ class LSTMCNN:
                 cArray=[]
                 for f in range(self.frameLengthPV[v]):
                     frame=cp.asarray(self.xTrain[v,f,:,:,:])
-                    frame=frame.astype(cp.float64)
+                    frame=frame.astype(cp.float32)
 
                     #startCNN=time.time()
                     lstmInput=self.spatialExtractor.forward(frame)
@@ -173,7 +173,7 @@ class LSTMCNN:
             print(f"End Time epoch  {e} for {maxCount} vids {timeTake}")     
          
            
-            #self.saveModel(f'Save_Model_epoch_{e}') 
+            self.saveModel(f'Save_Model_epoch_{e}') 
         self.plotCurves()
 
     def predict(self,Xinput,frameLength):
@@ -182,7 +182,7 @@ class LSTMCNN:
                 cArray=[]
                 for f in range(frameLength):
                     frame=cp.asarray(Xinput[f,::])
-                    frame=frame.astype(cp.float64)
+                    frame=frame.astype(cp.float32)
 
                     #startCNN=time.time()
                     lstmInput=self.spatialExtractor.forward(frame)
@@ -196,11 +196,16 @@ class LSTMCNN:
 
                 secondLastOutput=self.classifier1.forward(H)
                 prediction=self.classifier2.forward(secondLastOutput)
+                cArray=[]
+                self.spatialExtractor.resetCacheWeights()
                 return prediction
 
     def saveModel(self,path):
+        state=self.__dict__.copy()
+        state.pop('xTrain',None)
+        state.pop('yTrain',None)
         with open(path,'wb') as f:
-            pickle.dump(self,f)
+            pickle.dump(state,f)
 
     def validation(self,xValid,yValid,xVidLength,visitedVideos,epoch):
         numVideos,numFrames,numRows,numCols,depth=xValid.shape
@@ -260,7 +265,7 @@ class LSTMCNN:
         for v in shuffledIndex:
             v=int(v)
 
-            if counter==5: #temp hardcoded val fix later 
+            if counter==75: #temp hardcoded val fix later 
                  break
 
             p=self.predict(self.xTrain[v],self.frameLengthPV[v])
